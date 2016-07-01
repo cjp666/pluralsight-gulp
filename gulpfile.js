@@ -1,5 +1,6 @@
 var gulp = require('gulp');
 var args = require('yargs').argv;
+var browserSync = require('browser-sync');
 var config = require('./gulp.config')();
 var del = require('del');
 var $ = require('gulp-load-plugins')({ lazy: true });
@@ -70,22 +71,68 @@ gulp.task('serve-dev', ['inject'], function () {
         watch: [config.server]
     };
     return $.nodemon(nodeOptions)
-        .on('restart', ['vet'], function(ev) {
+        .on('restart', ['vet'], function (ev) {
             log('*** nodemon restarted');
             log('files changed on restart:\n' + ev);
+            setTimeout(function () {
+                browserSync.notify('reloading now');
+                browserSync.reload({ stream: false });
+            }, config.browserReloadDelay)
         })
-        .on('start', function() {
+        .on('start', function () {
             log('*** nodemon started');
+            startBrowserSync();
         })
-        .on('crash', function() {
+        .on('crash', function () {
             log('*** nodemon crashed for some reason');
         })
-        .on('exit', function() {
+        .on('exit', function () {
             log('*** nodemon exited cleanly');
         });
 });
 
 ////////////////////
+function changeEvent(event) {
+    var srcPattern = new RegExp('/.*(?=/' + config.source + ')/');
+    log('File ' + event.path.replace(srcPattern, '') + ' ' + event.type);
+}
+
+function startBrowserSync() {
+    if (args.nosync || browserSync.active) {
+        return;
+    }
+
+    log('Starting Browser Sync on port ' + port);
+
+    gulp.watch([config.less], ['styles'])
+        .on('change', function (event) {
+            changeEvent(event);
+        });
+
+    var options = {
+        proxy: 'localhost:' + port,
+        port: 3000,
+        files: [
+            config.client + '**/*.*',
+            '!' + config.less,
+            config.temp + '**/*.css'
+        ],
+        ghostMode: {
+            clicks: true,
+            location: false,
+            forms: true,
+            scroll: true
+        },
+        injectChanges: true,
+        logFileChanges: true,
+        loglevel: 'debug',
+        logPrefix: 'gulp-patterns',
+        notify: true,
+        reloadDelay: 0
+    };
+    browserSync(options);
+}
+
 function clean(path) {
     log('Cleaning: ' + $.util.colors.yellow(path));
     del(path);

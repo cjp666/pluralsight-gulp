@@ -1,4 +1,4 @@
-module.exports = function (){
+module.exports = function () {
     var client = './src/client/';
     var clientApp = client + 'app/';
     var server = './src/server/';
@@ -23,6 +23,8 @@ module.exports = function (){
         server: server,
         temp: temp,
 
+        browserReloadDelay: 1000,
+
         /**
          * Bower and NPM locations 
          */
@@ -39,7 +41,7 @@ module.exports = function (){
         nodeServer: './src/server/app.js'
     };
 
-    config.getWiredepDefaultOptions = function() {
+    config.getWiredepDefaultOptions = function () {
         var options = {
             bowerJson: config.bower.json,
             directory: config.bower.directory,
