@@ -1122,7 +1122,6 @@ textarea.form-control {
   /*width: 205px;*/
   display: inline;
   display: block;
-  width: 50%;
   max-width: 30em;
 }
 .widget .padd {
