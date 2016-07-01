@@ -77,7 +77,7 @@ gulp.task('serve-dev', ['inject'], function () {
             setTimeout(function () {
                 browserSync.notify('reloading now');
                 browserSync.reload({ stream: false });
-            }, config.browserReloadDelay)
+            }, config.browserReloadDelay);
         })
         .on('start', function () {
             log('*** nodemon started');
