@@ -72,8 +72,27 @@ gulp.task('clean-styles', function () {
     clean(files);
 });
 
+gulp.task('clean-code', function () {
+    var files = [
+        config.temp + '**/*.js',
+        config.build + '**/*.html',
+        config.temp + 'js/**/*.js'
+    ];
+    clean(files);
+});
+
 gulp.task('less-watcher', function () {
     gulp.watch([config.less], ['styles']);
+});
+
+gulp.task('templatecache', ['clean-code'], function () {
+    log('Creating Angular templatecache');
+
+    return gulp
+        .src(config.htmltemplates)
+        .pipe($.minifyHtml({ empty: true }))
+        .pipe($.angularTemplatecache(config.templatecache.file, config.templatecache.options))
+        .pipe(gulp.dest(config.temp));
 });
 
 gulp.task('wiredep', function () {
