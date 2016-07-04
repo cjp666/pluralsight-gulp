@@ -30,7 +30,7 @@ module.exports = function () {
         /**
          * template cache
          */
-        templatecache: {
+        templateCache: {
             file: 'templates.js',
             options: {
                 module: 'app.core',
