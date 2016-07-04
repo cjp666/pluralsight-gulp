@@ -34,6 +34,22 @@ gulp.task('styles', ['clean-styles'], function () {
         .pipe(gulp.dest(config.temp));
 });
 
+gulp.task('fonts', function (){
+    log('Copying fonts');
+
+    return gulp
+        .src(config.fonts)
+        .pipe(gulp.dest(config.build + 'fonts'));
+});
+
+gulp.task('images', function (){
+    log('Copying and compressing images');
+
+    return gulp
+        .src(config.images)
+        .pipe($.imagemin({ optimizationLevel: 4 }))
+        .pipe(gulp.dest(config.build + 'images'));
+});
 gulp.task('clean-styles', function () {
     var files = config.temp + '**/*.css';
     clean(files);
