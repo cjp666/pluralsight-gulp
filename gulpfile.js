@@ -34,7 +34,7 @@ gulp.task('styles', ['clean-styles'], function () {
         .pipe(gulp.dest(config.temp));
 });
 
-gulp.task('fonts', function (){
+gulp.task('fonts', ['clean-fonts'], function () {
     log('Copying fonts');
 
     return gulp
@@ -42,7 +42,7 @@ gulp.task('fonts', function (){
         .pipe(gulp.dest(config.build + 'fonts'));
 });
 
-gulp.task('images', function (){
+gulp.task('images', ['clean-images'], function () {
     log('Copying and compressing images');
 
     return gulp
@@ -50,6 +50,23 @@ gulp.task('images', function (){
         .pipe($.imagemin({ optimizationLevel: 4 }))
         .pipe(gulp.dest(config.build + 'images'));
 });
+
+gulp.task('clean', function (done) {
+    var delConfig = [].concat(config.build, config.temp);
+    log('Cleaning: ' + $.util.colors.blue(delConfig));
+    del(delConfig, done);
+});
+
+gulp.task('clean-fonts', function () {
+    var files = config.build + 'fonts/**/*.*';
+    clean(files);
+});
+
+gulp.task('clean-images', function () {
+    var files = config.build + 'images/**/*.*';
+    clean(files);
+});
+
 gulp.task('clean-styles', function () {
     var files = config.temp + '**/*.css';
     clean(files);
