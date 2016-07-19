@@ -187,7 +187,33 @@ gulp.task('serve-dev', ['inject'], function () {
     serve(true /* isDev */);
 });
 
+gulp.task('test', ['vet', 'templatecache'], function () {
+    startTest(true);
+});
+
 ////////////
+
+function changeEvent(event) {
+    var srcPattern = new RegExp('/.*(?=/' + config.source + ')/');
+    log('File ' + event.path.replace(srcPattern, '') + ' ' + event.type);
+}
+
+function clean(path) {
+    log('Cleaning: ' + $.util.colors.blue(path));
+    return del(path);
+}
+
+function log(msg) {
+    if (typeof (msg) === 'object') {
+        for (var item in msg) {
+            if (msg.hasOwnProperty(item)) {
+                $.util.log($.util.colors.blue(msg[item]));
+            }
+        }
+    } else {
+        $.util.log($.util.colors.blue(msg));
+    }
+}
 
 function serve(isDev) {
     var nodeOptions = {
@@ -219,11 +245,6 @@ function serve(isDev) {
         .on('exit', function () {
             log('*** nodemon exited cleanly');
         });
-}
-
-function changeEvent(event) {
-    var srcPattern = new RegExp('/.*(?=/' + config.source + ')/');
-    log('File ' + event.path.replace(srcPattern, '') + ' ' + event.type);
 }
 
 function startBrowserSync(isDev) {
@@ -266,19 +287,24 @@ function startBrowserSync(isDev) {
     browserSync(options);
 }
 
-function clean(path) {
-    log('Cleaning: ' + $.util.colors.blue(path));
-    return del(path);
-}
+function startTest(singleRun) {
+    var karma = require('karma').server;
+    var excludeFiles = [];
+    var serverSpecs = config.serverIntegrationSpecs;
 
-function log(msg) {
-    if (typeof (msg) === 'object') {
-        for (var item in msg) {
-            if (msg.hasOwnProperty(item)) {
-                $.util.log($.util.colors.blue(msg[item]));
-            }
+    excludeFiles = serverSpecs;
+
+    return karma.start({
+            configFile: __dirname + '/karma.conf.js',
+            exclude: excludeFiles,
+            singleRun: !!singleRun
+        }, karmaCompleted);
+
+    function karmaCompleted(karmaResult) {
+        log('Karma completed');
+        if (karmaResult === 1) {
+            return 'karma: tests failed with code ' + karmaResult;
         }
-    } else {
-        $.util.log($.util.colors.blue(msg));
+        return;
     }
 }
