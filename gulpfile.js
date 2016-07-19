@@ -207,6 +207,10 @@ gulp.task('test', ['vet', 'templatecache'], function () {
     startTest(true);
 });
 
+gulp.task('autotest', ['vet', 'templatecache'], function () {
+    startTest(false);
+});
+
 ////////////
 
 function changeEvent(event) {
