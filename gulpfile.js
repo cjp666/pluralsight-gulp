@@ -3,6 +3,8 @@ var args = require('yargs').argv;
 var browserSync = require('browser-sync');
 var config = require('./gulp.config')();
 var del = require('del');
+var path = require('path');
+var _ = require('lodash');
 var $ = require('gulp-load-plugins')({ lazy: true });
 
 var port = process.env.PORT || config.defaultPort;
@@ -115,7 +117,21 @@ gulp.task('inject', ['wiredep', 'styles', 'templatecache'], function () {
         .pipe(gulp.dest(config.client));
 });
 
-gulp.task('optimize', ['inject', 'images', 'fonts'], function () {
+gulp.task('build', ['optimize', 'images', 'fonts'], function () {
+    log('Building everything');
+
+    var msg = {
+        title: 'gulp build',
+        subtitle: 'Deployed to the build folder',
+        message: 'Running `gulp serve-build`'
+    };
+
+    clean(config.temp);
+    log(msg);
+    notify(msg);
+});
+
+gulp.task('optimize', ['inject', 'test'], function () {
     log('Optimizing js, css, html');
 
     var assets = $.useref.assets({ searchPath: './' });
@@ -179,7 +195,7 @@ gulp.task('bump', function () {
         .pipe(gulp.dest(config.root));
 });
 
-gulp.task('serve-build', ['optimize'], function () {
+gulp.task('serve-build', ['build'], function () {
     serve(false /* isDev */);
 });
 
@@ -201,6 +217,17 @@ function changeEvent(event) {
 function clean(path) {
     log('Cleaning: ' + $.util.colors.blue(path));
     return del(path);
+}
+
+function notify(options) {
+    var notifier = require('node-notifier');
+    var notifyOptions = {
+        sound: 'Bottle',
+        contentImage: path.join(__dirname, 'gulp.png'),
+        icon: path.join(__dirname, 'gulp.png'),
+    };
+    _.assign(notifyOptions, options);
+    notifier.notify(notifyOptions);
 }
 
 function log(msg) {
@@ -295,10 +322,10 @@ function startTest(singleRun) {
     excludeFiles = serverSpecs;
 
     return karma.start({
-            configFile: __dirname + '/karma.conf.js',
-            exclude: excludeFiles,
-            singleRun: !!singleRun
-        }, karmaCompleted);
+        configFile: __dirname + '/karma.conf.js',
+        exclude: excludeFiles,
+        singleRun: !!singleRun
+    }, karmaCompleted);
 
     function karmaCompleted(karmaResult) {
         log('Karma completed');
