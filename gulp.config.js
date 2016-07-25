@@ -10,7 +10,9 @@ module.exports = function () {
     var bowerFiles = wiredep({ devDependencies: true })['js'];
 
     var config = {
-        // all the js I want to vet
+        /**
+         * Files paths
+         */
         alljs: [
             './src/**/*.js',
             './*.js'
@@ -19,6 +21,7 @@ module.exports = function () {
         client: client,
         css: temp + 'styles.css',
         fonts: './bower_components/font-awesome/fonts/**/*.*',
+        html: clientApp + '**/*.html',
         htmltemplates: clientApp + '**/*.html',
         images: client + 'images/**/*.*',
         index: client + 'index.html',
@@ -53,10 +56,13 @@ module.exports = function () {
             }
         },
 
+        /**
+         * browser sync
+         */
         browserReloadDelay: 1000,
 
         /**
-         * Bower and NPM locations 
+         * Bower and NPM locations
          */
         bower: {
             json: require('./bower.json'),
@@ -69,7 +75,7 @@ module.exports = function () {
         ],
 
         /**
-         * specs.html
+         * specs.html, our HTML spec runner
          */
         specRunner: client + specRunnerFile,
         specRunnerFile: specRunnerFile,
@@ -77,24 +83,20 @@ module.exports = function () {
             'node_modules/mocha/mocha.js',
             'node_modules/chai/chai.js',
             'node_modules/mocha-clean/index.js',
-            'node_modules/sinon-chai/lib/sinon-chai.js',
+            'node_modules/sinon-chai/lib/sinon-chai.js'
         ],
         specs: [
             clientApp + '**/*.spec.js'
         ],
 
         /**
-         * Karama and testing settings
+         * Karma and testing settings
          */
-        specHelpers: [
-            client + 'test-helpers/*.js'
-        ],
-        serverIntegrationSpecs: [
-            client + 'tests/server-integration/**/*.spec.js'
-        ],
+        specHelpers: [client + 'test-helpers/*.js'],
+        serverIntegrationSpecs: [client + 'tests/server-integration/**/*.spec.js'],
 
         /**
-         * Node Settings
+         * Node settings
          */
         defaultPort: 7203,
         nodeServer: './src/server/app.js'
