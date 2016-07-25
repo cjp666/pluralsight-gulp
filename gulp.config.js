@@ -109,11 +109,11 @@ module.exports = function () {
         return options;
     };
 
-    config.karma = getKaramOptions();
+    config.karma = getKarmaOptions();
 
     return config;
 
-    function getKaramOptions() {
+    function getKarmaOptions() {
         var options = {
             files: [].concat(
                 bowerFiles,
@@ -132,11 +132,9 @@ module.exports = function () {
                     { type: 'text-summary' }
                 ]
             },
-            preprocesors: {}
+            preprocessors: {}
         };
-
-        options.preprocesors[client + '**/!(*.spec)+(.js)'] = ['coverage'];
-
+        options.preprocessors[clientApp + '**/!(*.spec)+(.js)'] = ['coverage'];
         return options;
     }
 };
