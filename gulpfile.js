@@ -9,9 +9,6 @@ var $ = require('gulp-load-plugins')({ lazy: true });
 
 var port = process.env.PORT || config.defaultPort;
 
-gulp.task('help', $.taskListing);
-gulp.task('default', ['help']);
-
 gulp.task('vet', function () {
     log('Analyzing source with JSHint and JSCS');
 
@@ -22,34 +19,6 @@ gulp.task('vet', function () {
         .pipe($.jshint())
         .pipe($.jshint.reporter('jshint-stylish', { verbose: true }))
         .pipe($.jshint.reporter('fail'));
-});
-
-gulp.task('styles', ['clean-styles'], function () {
-    log('Compiling Less --> CSS');
-
-    return gulp
-        .src(config.less)
-        .pipe($.plumber())
-        .pipe($.less())
-        .pipe($.autoprefixer({ browsers: ['last 2 versions', '> 5%'] }))
-        .pipe(gulp.dest(config.temp));
-});
-
-gulp.task('fonts', ['clean-fonts'], function () {
-    log('Copying fonts');
-
-    return gulp
-        .src(config.fonts)
-        .pipe(gulp.dest(config.build + 'fonts'));
-});
-
-gulp.task('images', ['clean-images'], function () {
-    log('Copying and compressing the images');
-
-    return gulp
-        .src(config.images)
-        .pipe($.imagemin({ optimizationLevel: 4 }))
-        .pipe(gulp.dest(config.build + 'images'));
 });
 
 gulp.task('clean', function () {
@@ -79,23 +48,6 @@ gulp.task('clean-code', function () {
     return clean(files);
 });
 
-gulp.task('less-watcher', function () {
-    gulp.watch([config.less], ['styles']);
-});
-
-gulp.task('templatecache', ['clean-code'], function () {
-    log('Creating AngularJS $templateCache');
-
-    return gulp
-        .src(config.htmltemplates)
-        .pipe($.minifyHtml({ empty: true }))
-        .pipe($.angularTemplatecache(
-            config.templateCache.file,
-            config.templateCache.options
-        ))
-        .pipe(gulp.dest(config.temp));
-});
-
 gulp.task('wiredep', function () {
     log('Wire up the bower css js and our app js into the html');
     var options = config.getWiredepDefaultOptions();
@@ -108,36 +60,126 @@ gulp.task('wiredep', function () {
         .pipe(gulp.dest(config.client));
 });
 
-gulp.task('inject', ['wiredep', 'styles', 'templatecache'], function () {
-    log('Wire up the app css into the html, and call wiredep ');
+gulp.task('templatecache', gulp.series('clean-code', function () {
+    log('Creating AngularJS $templateCache');
 
     return gulp
-        .src(config.index)
-        .pipe($.inject(gulp.src(config.css)))
-        .pipe(gulp.dest(config.client));
+        .src(config.htmltemplates)
+        .pipe($.minifyHtml({ empty: true }))
+        .pipe($.angularTemplatecache(
+            config.templateCache.file,
+            config.templateCache.options
+        ))
+        .pipe(gulp.dest(config.temp));
+}));
+
+gulp.task('test', gulp.series(
+    gulp.parallel('vet', 'templatecache'), 
+    function (done) {
+        startTests(true, done);
+    })
+);
+
+gulp.task('styles', gulp.series('clean-styles', function () {
+    log('Compiling Less --> CSS');
+
+    return gulp
+        .src(config.less)
+        .pipe($.plumber())
+        .pipe($.less())
+        .pipe($.autoprefixer({ browsers: ['last 2 versions', '> 5%'] }))
+        .pipe(gulp.dest(config.temp));
+}));
+
+gulp.task('fonts', gulp.series('clean-fonts', function () {
+    log('Copying fonts');
+
+    return gulp
+        .src(config.fonts)
+        .pipe(gulp.dest(config.build + 'fonts'));
+}));
+
+gulp.task('images', gulp.series('clean-images', function () {
+    log('Copying and compressing the images');
+
+    return gulp
+        .src(config.images)
+        .pipe($.imagemin({ optimizationLevel: 4 }))
+        .pipe(gulp.dest(config.build + 'images'));
+}));
+
+gulp.task('inject', gulp.series(
+    gulp.parallel('wiredep', 'styles', 'templatecache'), 
+    function () {
+        log('Wire up the app css into the html, and call wiredep ');
+
+        return gulp
+            .src(config.index)
+            .pipe($.inject(gulp.src(config.css)))
+            .pipe(gulp.dest(config.client));
+    })
+);
+
+gulp.task('optimize', gulp.series(
+    gulp.parallel('inject', 'test'), 
+    function () {
+        log('Optimizing js, css, html');
+
+        var assets = $.useref.assets({ searchPath: './' });
+        var templateCache = config.temp + config.templateCache.file;
+        var cssFilter = $.filter('**/*.css');
+        var jsLibFilter = $.filter('**/' + config.optimized.lib);
+        var jsAppFilter = $.filter('**/' + config.optimized.app);
+
+        return gulp
+            .src(config.index)
+            .pipe($.plumber())
+            .pipe($.inject(gulp.src(templateCache, { read: false }), {
+                starttag: '<!-- inject:templates:js -->'
+            }))
+            .pipe(assets)
+            .pipe(cssFilter)
+            .pipe($.csso())
+            .pipe(cssFilter.restore())
+            .pipe(jsLibFilter)
+            .pipe($.uglify())
+            .pipe(jsLibFilter.restore())
+            .pipe(jsAppFilter)
+            .pipe($.ngAnnotate())
+            .pipe($.uglify())
+            .pipe(jsAppFilter.restore())
+            .pipe($.rev())
+            .pipe(assets.restore())
+            .pipe($.useref())
+            .pipe($.revReplace())
+            .pipe($.rev.manifest())
+            .pipe(gulp.dest(config.build));
+    })
+);
+
+gulp.task('less-watcher', function () {
+    gulp.watch([config.less], ['styles']);
 });
 
-gulp.task('build', ['optimize', 'images', 'fonts'], function () {
-    log('Building everything');
+gulp.task('build', gulp.series(
+    gulp.parallel('optimize', 'images', 'fonts'), 
+    function (done) {
+        log('Building everything');
 
-    var msg = {
-        title: 'gulp build',
-        subtitle: 'Deployed to the build folder',
-        message: 'Running `gulp serve-build`'
-    };
+        var msg = {
+            title: 'gulp build',
+            subtitle: 'Deployed to the build folder',
+            message: 'Running `gulp serve-build`'
+        };
 
-    clean(config.temp);
-    log(msg);
-    notify(msg);
-});
+        clean(config.temp);
+        log(msg);
+        notify(msg);
+        done();
+    })
+);
 
-gulp.task('serve-specs', ['build-specs'], function () {
-    log('Run the spec runner');
-
-    return serve(true, true);
-});
-
-gulp.task('build-specs', ['templatecache'], function () {
+gulp.task('build-specs', gulp.series('templatecache', function () {
     log('building the spec runner');
 
     var wiredep = require('wiredep').stream;
@@ -167,41 +209,14 @@ gulp.task('build-specs', ['templatecache'], function () {
             name: 'inject:templates', read: false
         }))
         .pipe(gulp.dest(config.client));
-});
+}));
 
-gulp.task('optimize', ['inject', 'test'], function () {
-    log('Optimizing js, css, html');
+gulp.task('serve-specs', gulp.series('build-specs', function (done) {
+    log('Run the spec runner');
 
-    var assets = $.useref.assets({ searchPath: './' });
-    var templateCache = config.temp + config.templateCache.file;
-    var cssFilter = $.filter('**/*.css');
-    var jsLibFilter = $.filter('**/' + config.optimized.lib);
-    var jsAppFilter = $.filter('**/' + config.optimized.app);
-
-    return gulp
-        .src(config.index)
-        .pipe($.plumber())
-        .pipe($.inject(gulp.src(templateCache, { read: false }), {
-            starttag: '<!-- inject:templates:js -->'
-        }))
-        .pipe(assets)
-        .pipe(cssFilter)
-        .pipe($.csso())
-        .pipe(cssFilter.restore())
-        .pipe(jsLibFilter)
-        .pipe($.uglify())
-        .pipe(jsLibFilter.restore())
-        .pipe(jsAppFilter)
-        .pipe($.ngAnnotate())
-        .pipe($.uglify())
-        .pipe(jsAppFilter.restore())
-        .pipe($.rev())
-        .pipe(assets.restore())
-        .pipe($.useref())
-        .pipe($.revReplace())
-        .pipe($.rev.manifest())
-        .pipe(gulp.dest(config.build));
-});
+    serve(true, true);
+    done();
+}));
 
 /**
  * Bump the version
@@ -233,21 +248,20 @@ gulp.task('bump', function () {
         .pipe(gulp.dest(config.root));
 });
 
-gulp.task('serve-build', ['build'], function () {
+gulp.task('serve-build', gulp.series('build', function () {
     serve(false /* isDev */);
-});
+}));
 
-gulp.task('serve-dev', ['inject'], function () {
+gulp.task('serve-dev', gulp.series('inject', function () {
     serve(true /* isDev */);
-});
+}));
 
-gulp.task('test', ['vet', 'templatecache'], function () {
-    startTest(true);
-});
-
-gulp.task('autotest', ['vet', 'templatecache'], function () {
-    startTest(false);
-});
+gulp.task('autotest', gulp.series(
+    gulp.parallel('vet', 'templatecache'), 
+    function (done) {
+        startTests(false, done);
+    })
+);
 
 ////////////
 
@@ -360,19 +374,18 @@ function startBrowserSync(isDev, specRunner) {
     browserSync(options);
 }
 
-function startTest(singleRun) {
+function startTests(singleRun, done) {
     var child;
     var fork = require('child_process').fork;
     var karma = require('karma').server;
     var excludeFiles = [];
-    var serverSpecs = config.serverIntegrationSpecs;
+    var serverSpecs = config.serverIntegrationSpecs; //TODO
 
-    if (args.startServers) {
-        // gulp test --startServers
+    if (args.startServers) { // gulp test --startServers
         log('Starting server');
         var savedEnv = process.env;
         savedEnv.NODE_ENV = 'dev';
-        savedEnv.port = 8888;
+        savedEnv.PORT = 8888;
         child = fork(config.nodeServer);
     } else {
         if (serverSpecs && serverSpecs.length) {
@@ -380,23 +393,22 @@ function startTest(singleRun) {
         }
     }
 
-    excludeFiles = serverSpecs;
-
-    return karma.start({
+    karma.start({
         configFile: __dirname + '/karma.conf.js',
         exclude: excludeFiles,
         singleRun: !!singleRun
     }, karmaCompleted);
 
     function karmaCompleted(karmaResult) {
-        log('Karma completed');
+        log('Karma completed!');
         if (child) {
-            log('Shurdown the child process');
+            log('Shutting down the child process');
             child.kill();
         }
         if (karmaResult === 1) {
-            return 'karma: tests failed with code ' + karmaResult;
+            done('karma: tests failed with code ' + karmaResult);
+        } else {
+            done();
         }
-        return;
     }
 }

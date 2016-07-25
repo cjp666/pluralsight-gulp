@@ -32,3 +32,19 @@ Or the specific versions for this course
 ```
 npm install --save-dev chai@1.10.0 karma@0.12.31 karma-chai@0.1.0 karma-chai-sinon@0.1.4 karma-chrome-launcher@0.1.7 karma-coverage@0.2.7 karma-growl-reporter@0.1.1 karma-mocha@0.1.10 karma-phantomjs-launcher@0.1.4 karma-sinon@1.0.4 mocha@2.1.0 mocha-clean@0.4.0 phantomjs@1.9.13 sinon@1.12.2 sinon-chai@2.6.0
 ```
+
+## Migrating to Gulp 4
+If a previous version is installed then you may need to uninstall that before installing v4
+
+```
+npm install -g "gulpjs/gulp#4.0"
+npm install -g "gulpjs/gulp-cli"
+npm install "gulpjs/gulp#4.0" --save-dev
+```
+
+
+```
+gulp --tasks-simple
+```
+
+https://app.pluralsight.com/library/courses/javascript-build-automation-gulpjs/recommended-courses
