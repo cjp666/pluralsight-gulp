@@ -6,20 +6,7 @@ var del = require('del');
 var path = require('path');
 var _ = require('lodash');
 var $ = require('gulp-load-plugins')({ lazy: true });
-
 var port = process.env.PORT || config.defaultPort;
-
-gulp.task('vet', function () {
-    log('Analyzing source with JSHint and JSCS');
-
-    return gulp
-        .src(config.alljs)
-        .pipe($.if(args.verbose, $.print()))
-        .pipe($.jscs())
-        .pipe($.jshint())
-        .pipe($.jshint.reporter('jshint-stylish', { verbose: true }))
-        .pipe($.jshint.reporter('fail'));
-});
 
 gulp.task('clean', function () {
     var delconfig = [].concat(config.build, config.temp);
@@ -48,16 +35,16 @@ gulp.task('clean-code', function () {
     return clean(files);
 });
 
-gulp.task('wiredep', function () {
-    log('Wire up the bower css js and our app js into the html');
-    var options = config.getWiredepDefaultOptions();
-    var wiredep = require('wiredep').stream;
+gulp.task('vet', function () {
+    log('Analyzing source with JSHint and JSCS');
 
     return gulp
-        .src(config.index)
-        .pipe(wiredep(options))
-        .pipe($.inject(gulp.src(config.js)))
-        .pipe(gulp.dest(config.client));
+        .src(config.alljs)
+        .pipe($.if(args.verbose, $.print()))
+        .pipe($.jscs())
+        .pipe($.jshint())
+        .pipe($.jshint.reporter('jshint-stylish', { verbose: true }))
+        .pipe($.jshint.reporter('fail'));
 });
 
 gulp.task('templatecache', gulp.series('clean-code', function () {
@@ -74,9 +61,9 @@ gulp.task('templatecache', gulp.series('clean-code', function () {
 }));
 
 gulp.task('test', gulp.series(
-    gulp.parallel('vet', 'templatecache'), 
+    gulp.parallel('vet', 'templatecache'),
     function (done) {
-        startTests(true, done);
+        startTests(true /* singleRun */, done);
     })
 );
 
@@ -87,7 +74,7 @@ gulp.task('styles', gulp.series('clean-styles', function () {
         .src(config.less)
         .pipe($.plumber())
         .pipe($.less())
-        .pipe($.autoprefixer({ browsers: ['last 2 versions', '> 5%'] }))
+        .pipe($.autoprefixer({ browsers: ['last 2 version', '> 5%'] }))
         .pipe(gulp.dest(config.temp));
 }));
 
@@ -108,8 +95,24 @@ gulp.task('images', gulp.series('clean-images', function () {
         .pipe(gulp.dest(config.build + 'images'));
 }));
 
+gulp.task('less-watcher', function () {
+    gulp.watch([config.less], ['styles']);
+});
+
+gulp.task('wiredep', function () {
+    log('Wire up the bower css js and our app js into the html');
+    var options = config.getWiredepDefaultOptions();
+    var wiredep = require('wiredep').stream;
+
+    return gulp
+        .src(config.index)
+        .pipe(wiredep(options))
+        .pipe($.inject(gulp.src(config.js)))
+        .pipe(gulp.dest(config.client));
+});
+
 gulp.task('inject', gulp.series(
-    gulp.parallel('wiredep', 'styles', 'templatecache'), 
+    gulp.parallel('wiredep', 'styles', 'templatecache'),
     function () {
         log('Wire up the app css into the html, and call wiredep ');
 
@@ -121,9 +124,9 @@ gulp.task('inject', gulp.series(
 );
 
 gulp.task('optimize', gulp.series(
-    gulp.parallel('inject', 'test'), 
+    gulp.parallel('inject', 'test'),
     function () {
-        log('Optimizing js, css, html');
+        log('Optimizing the javascript, css, html');
 
         var assets = $.useref.assets({ searchPath: './' });
         var templateCache = config.temp + config.templateCache.file;
@@ -134,9 +137,10 @@ gulp.task('optimize', gulp.series(
         return gulp
             .src(config.index)
             .pipe($.plumber())
-            .pipe($.inject(gulp.src(templateCache, { read: false }), {
-                starttag: '<!-- inject:templates:js -->'
-            }))
+            .pipe($.inject(
+                gulp.src(templateCache, { read: false }), {
+                    starttag: '<!-- inject:templates:js -->'
+                }))
             .pipe(assets)
             .pipe(cssFilter)
             .pipe($.csso())
@@ -152,17 +156,14 @@ gulp.task('optimize', gulp.series(
             .pipe(assets.restore())
             .pipe($.useref())
             .pipe($.revReplace())
+            .pipe(gulp.dest(config.build))
             .pipe($.rev.manifest())
             .pipe(gulp.dest(config.build));
     })
 );
 
-gulp.task('less-watcher', function () {
-    gulp.watch([config.less], ['styles']);
-});
-
 gulp.task('build', gulp.series(
-    gulp.parallel('optimize', 'images', 'fonts'), 
+    gulp.parallel('optimize', 'images', 'fonts'),
     function (done) {
         log('Building everything');
 
@@ -171,8 +172,7 @@ gulp.task('build', gulp.series(
             subtitle: 'Deployed to the build folder',
             message: 'Running `gulp serve-build`'
         };
-
-        clean(config.temp);
+        del(config.temp);
         log(msg);
         notify(msg);
         done();
@@ -195,26 +195,21 @@ gulp.task('build-specs', gulp.series('templatecache', function () {
     return gulp
         .src(config.specRunner)
         .pipe(wiredep(options))
-        .pipe($.inject(gulp.src(config.testlibraries), {
-            name: 'inject:testlibraries', read: false
-        }))
+        .pipe($.inject(gulp.src(config.testlibraries),
+            { name: 'inject:testlibraries', read: false }))
         .pipe($.inject(gulp.src(config.js)))
-        .pipe($.inject(gulp.src(config.specHelpers), {
-            name: 'inject:specHelpers', read: false
-        }))
-        .pipe($.inject(gulp.src(specs), {
-            name: 'inject:specs', read: false
-        }))
-        .pipe($.inject(gulp.src(config.temp + config.templateCache.file), {
-            name: 'inject:templates', read: false
-        }))
+        .pipe($.inject(gulp.src(config.specHelpers),
+            { name: 'inject:spechelpers', read: false }))
+        .pipe($.inject(gulp.src(specs),
+            { name: 'inject:specs', read: false }))
+        .pipe($.inject(gulp.src(config.temp + config.templateCache.file),
+            { name: 'inject:templates', read: false }))
         .pipe(gulp.dest(config.client));
 }));
 
 gulp.task('serve-specs', gulp.series('build-specs', function (done) {
-    log('Run the spec runner');
-
-    serve(true, true);
+    log('run the spec runner');
+    serve(true /* isDev */, true /* specRunner */);
     done();
 }));
 
@@ -231,7 +226,6 @@ gulp.task('bump', function () {
     var type = args.type;
     var version = args.version;
     var options = {};
-
     if (version) {
         options.version = version;
         msg += ' to ' + version;
@@ -257,46 +251,13 @@ gulp.task('serve-dev', gulp.series('inject', function () {
 }));
 
 gulp.task('autotest', gulp.series(
-    gulp.parallel('vet', 'templatecache'), 
+    gulp.parallel('vet', 'templatecache'),
     function (done) {
-        startTests(false, done);
+        startTests(false /* singleRun */, done);
     })
 );
 
 ////////////
-
-function changeEvent(event) {
-    var srcPattern = new RegExp('/.*(?=/' + config.source + ')/');
-    log('File ' + event.path.replace(srcPattern, '') + ' ' + event.type);
-}
-
-function clean(path) {
-    log('Cleaning: ' + $.util.colors.blue(path));
-    return del(path);
-}
-
-function notify(options) {
-    var notifier = require('node-notifier');
-    var notifyOptions = {
-        sound: 'Bottle',
-        contentImage: path.join(__dirname, 'gulp.png'),
-        icon: path.join(__dirname, 'gulp.png'),
-    };
-    _.assign(notifyOptions, options);
-    notifier.notify(notifyOptions);
-}
-
-function log(msg) {
-    if (typeof (msg) === 'object') {
-        for (var item in msg) {
-            if (msg.hasOwnProperty(item)) {
-                $.util.log($.util.colors.blue(msg[item]));
-            }
-        }
-    } else {
-        $.util.log($.util.colors.blue(msg));
-    }
-}
 
 function serve(isDev, specRunner) {
     var nodeOptions = {
@@ -330,6 +291,22 @@ function serve(isDev, specRunner) {
         });
 }
 
+function changeEvent(event) {
+    var srcPattern = new RegExp('/.*(?=/' + config.source + ')/');
+    log('File ' + event.path.replace(srcPattern, '') + ' ' + event.type);
+}
+
+function notify(options) {
+    var notifier = require('node-notifier');
+    var notifyOptions = {
+        sound: 'Bottle',
+        contentImage: path.join(__dirname, 'gulp.png'),
+        icon: path.join(__dirname, 'gulp.png')
+    };
+    _.assign(notifyOptions, options);
+    notifier.notify(notifyOptions);
+}
+
 function startBrowserSync(isDev, specRunner) {
     if (args.nosync || browserSync.active) {
         return;
@@ -339,10 +316,10 @@ function startBrowserSync(isDev, specRunner) {
 
     if (isDev) {
         gulp.watch([config.less], ['styles'])
-            .on('change', function (event) { changeEvent(event); });
+            .on('change', changeEvent);
     } else {
         gulp.watch([config.less, config.js, config.html], ['optimize', browserSync.reload])
-            .on('change', function (event) { changeEvent(event); });
+            .on('change', changeEvent);
     }
 
     var options = {
@@ -410,5 +387,22 @@ function startTests(singleRun, done) {
         } else {
             done();
         }
+    }
+}
+
+function clean(path) {
+    log('Cleaning: ' + $.util.colors.blue(path));
+    return del(path);
+}
+
+function log(msg) {
+    if (typeof (msg) === 'object') {
+        for (var item in msg) {
+            if (msg.hasOwnProperty(item)) {
+                $.util.log($.util.colors.blue(msg[item]));
+            }
+        }
+    } else {
+        $.util.log($.util.colors.blue(msg));
     }
 }
